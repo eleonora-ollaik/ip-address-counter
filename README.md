@@ -28,13 +28,20 @@ It has roughly ~1400 ip addresses from which only 79 are unique.
 
 ```go run main.go ip_addresses.txt```
 
+
 Starting the count...
+
 
 Execution complete.
 
+
 Unique number of IPs: 79
+
 Lines processed: 1472
+
 Time taken to execute: 4.3383ms
+
+
 
 #### Unhappy scenarios:
 
@@ -49,10 +56,15 @@ The program is designed to skip those lines to continue count
 
 ```go run main.go ip_addresses_invalids.txt```
 
+
 Starting the count...
+
 
 Execution complete.
 
+
 Unique number of IPs: 79
+
 Lines processed: 1472
+
 Time taken to execute: 4.2913ms
