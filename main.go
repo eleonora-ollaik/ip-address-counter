@@ -62,6 +62,7 @@ func main() {
 	wg.Wait()
 
 	finishTime := time.Since(startTime)
+	fmt.Println()
 	fmt.Printf("Execution complete.\n")
 	fmt.Println()
 	fmt.Printf("Unique number of IPs: %v\n", ipCount)
@@ -85,7 +86,7 @@ func reader(filename string, lines chan<- string) {
 	fmt.Printf("Time taken for reading %v \n", finishTime)
 }
 
-// Processor function that is defining unique ip addresses from the stream
+// Processor function that is reading the channel and defining unique ip addresses
 func processor(lines <-chan string, wg *sync.WaitGroup, bitmap []byte, ipCount *uint64, linesCount *uint64, muUniqueIps *sync.Mutex) {
 	defer wg.Done()
 	startTime := time.Now()
@@ -94,6 +95,8 @@ func processor(lines <-chan string, wg *sync.WaitGroup, bitmap []byte, ipCount *
 		ipAddress, err := stringToUint32(ipAddressString)
 		atomic.AddUint64(linesCount, 1)
 		if err != nil {
+			// Log the error
+			fmt.Println(err)
 			return // Skip the non ip line to keep counting IPv4s
 		}
 		//Byte index to check in the bitmap:
@@ -120,7 +123,7 @@ func processor(lines <-chan string, wg *sync.WaitGroup, bitmap []byte, ipCount *
 func stringToUint32(ipString string) (uint32, error) {
 	ipInt := net.ParseIP(ipString).To4()
 	if ipInt == nil {
-		return 0, fmt.Errorf("is not a valid IPv4 address")
+		return 0, fmt.Errorf("%v is not a valid IPv4 address", ipString)
 	}
 	return binary.BigEndian.Uint32(ipInt), nil
 }
