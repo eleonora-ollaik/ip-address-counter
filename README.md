@@ -37,17 +37,17 @@ go run main.go ip_addresses.txt
 ```
 
 
-Starting the count...
+    Starting the count...
 
 
-Execution complete.
+    Execution complete.
 
 
-Unique number of IPs: 79
+    Unique number of IPs: 79
 
-Lines processed: 1472
+    Lines processed: 1472
 
-Time taken to execute: 4.3383ms
+    Time taken to execute: 4.3383ms
 
 
 
@@ -57,7 +57,7 @@ Time taken to execute: 4.3383ms
 go run main.go non-existent-file
 ```
 
-Error: file ip_addresses does not exist
+    Error: file ip_addresses does not exist
 
 -----------------
 
