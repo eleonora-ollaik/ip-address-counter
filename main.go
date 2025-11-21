@@ -1,19 +1,13 @@
 package main
 
 import (
-	"bufio"
-	"encoding/binary"
 	"fmt"
-	"net"
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// For this case the ds used is bitmap.
-// byte array of length 536 870 912 bytes.
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Error: Please run again. Usage: go run main.go <filename>")
@@ -21,12 +15,6 @@ func main() {
 	}
 	startTime := time.Now()
 	filename := os.Args[1]
-
-	// fileExtention := strings.ToLower(filepath.Ext(filename))
-	// if fileExtention != ".txt" {
-	// 	fmt.Printf("Error: only .txt files are allowed\n")
-	// 	return
-	// }
 
 	if _, error := os.Stat(filename); os.IsNotExist(error) {
 		fmt.Printf("Error: file %v does not exist\n", filename)
@@ -48,19 +36,32 @@ func main() {
 	var linesCount uint64
 	var wg sync.WaitGroup
 	var muUniqueIps sync.Mutex
+
 	// Setting number of workers to be CPU cores number for optimal solution
 	workers := runtime.NumCPU()
 	wg.Add(workers)
 
-	// 1000 is an arbitrary number, enough for the usecase
-	lines := make(chan string, 1000)
+	fileInfo, _ := os.Stat(filename)
+	totalFileSize := fileInfo.Size()
+	chunkSize := totalFileSize / int64(workers)
 
-	for i := 1; i <= workers; i++ {
-		go processor(lines, &wg, bitmap, &ipCount, &linesCount, &muUniqueIps)
+	// Progress bar printer
+	var processed int64
+	tickerDone := make(chan struct{})
+	go ticker(&processed, totalFileSize, tickerDone)
+
+	for i := 0; i < workers; i++ {
+		start := int64(i) * chunkSize
+		end := start + chunkSize
+		if i == workers-1 {
+			end = totalFileSize
+		}
+		isFirst := i == 0
+		go processor(filename, &wg, start, end, isFirst, &processed, bitmap, &ipCount, &linesCount, &muUniqueIps)
 	}
-	go reader(filename, lines)
-	wg.Wait()
 
+	wg.Wait()
+	close(tickerDone)
 	finishTime := time.Since(startTime)
 	fmt.Println()
 	fmt.Printf("Execution complete.\n")
@@ -69,61 +70,4 @@ func main() {
 	fmt.Printf("Lines processed: %v\n", linesCount)
 	fmt.Printf("Time taken to execute: %v \n", finishTime)
 	fmt.Println()
-}
-
-// Reader that goes through file and feeds each line into the channel
-func reader(filename string, lines chan<- string) {
-	startTime := time.Now()
-	file, _ := os.Open(filename)
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		lines <- scanner.Text()
-	}
-	close(lines)
-	finishTime := time.Since(startTime)
-	fmt.Printf("Time taken for reading %v \n", finishTime)
-}
-
-// Processor function that is reading the channel and defining unique ip addresses
-func processor(lines <-chan string, wg *sync.WaitGroup, bitmap []byte, ipCount *uint64, linesCount *uint64, muUniqueIps *sync.Mutex) {
-	defer wg.Done()
-	startTime := time.Now()
-
-	for ipAddressString := range lines {
-		ipAddress, err := stringToUint32(ipAddressString)
-		atomic.AddUint64(linesCount, 1)
-		if err != nil {
-			// Log the error
-			fmt.Println(err)
-			return // Skip the non ip line to keep counting IPv4s
-		}
-		//Byte index to check in the bitmap:
-		byteIndex := ipAddress / 8
-		byteOffset := ipAddress % 8
-		//Bit to check:
-		mask := byte(1 << byteOffset)
-
-		//If item doesn't exist in the bitmap, add there and increase count
-		muUniqueIps.Lock()
-		if bitmap[byteIndex]&mask == 0 {
-			bitmap[byteIndex] |= mask
-			atomic.AddUint64(ipCount, 1)
-		}
-		muUniqueIps.Unlock()
-
-	}
-	finishTime := time.Since(startTime)
-	fmt.Printf("Time taken for processing %v \n", finishTime)
-
-}
-
-// Function that is converting ip string value to Uint32
-func stringToUint32(ipString string) (uint32, error) {
-	ipInt := net.ParseIP(ipString).To4()
-	if ipInt == nil {
-		return 0, fmt.Errorf("%v is not a valid IPv4 address", ipString)
-	}
-	return binary.BigEndian.Uint32(ipInt), nil
 }
